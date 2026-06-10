@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>裝潢採購資料庫</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --cream: #faf5ee; --cream-dark: #f0e8d8; --brown: #7a4e2a; --brown-light: #d4a87a;
+    --brown-border: #e0c9a8; --text: #2c1f0f; --text-muted: #8a7060; --text-hint: #b8a898;
+    --bg: #ffffff; --bg-row: #fdfaf6; --border: #e8ddd0;
+    --green-bg: #e9efe3; --green-text: #3B6D11; --green-border: #b8d4a0;
+    --amber-bg: #faeeda; --amber-text: #854F0B;
+    --blue-bg: #e6f1fb; --blue-text: #185FA5;
+    --red-bg: #fcebeb; --red-text: #A32D2D;
+    --radius: 10px; --radius-sm: 6px;
+  }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--cream); color: var(--text); min-height: 100vh; }
+  .header { background: var(--bg); border-bottom: 1px solid var(--border); padding: 0 2rem; display: flex; align-items: center; justify-content: space-between; height: 56px; }
+  .logo { font-size: 17px; font-weight: 600; color: var(--brown); }
+  .logo span { color: var(--brown-light); }
+  .sync-status { font-size: 12px; color: var(--text-muted); display: flex; align-items: center; gap: 6px; }
+  .sync-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--text-hint); }
+  .sync-dot.ok { background: var(--green-text); }
+  .sync-dot.syncing { background: var(--amber-text); animation: pulse 1s infinite; }
+  .sync-dot.err { background: var(--red-text); }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .key-bar { background: var(--cream-dark); border-bottom: 1px solid var(--brown-border); padding: 10px 2rem; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .key-bar label { font-size: 13px; color: var(--brown); font-weight: 500; white-space: nowrap; }
+  .key-bar input { flex: 1; min-width: 260px; padding: 7px 12px; border-radius: var(--radius-sm); border: 1px solid var(--brown-border); background: var(--bg); color: var(--text); font-size: 13px; font-family: monospace; }
+  .key-bar input:focus { outline: none; border-color: var(--brown-light); }
+  .btn-sm { padding: 7px 16px; border-radius: var(--radius-sm); border: none; background: var(--brown); color: #fff; font-size: 13px; cursor: pointer; white-space: nowrap; }
+  .btn-sm:hover { background: #6a3f20; }
+  .key-status { font-size: 12px; color: var(--text-muted); }
+  .key-status.ok { color: var(--green-text); }
+  .main { max-width: 1200px; margin: 0 auto; padding: 2rem; }
+  .tabs { display: flex; gap: 8px; margin-bottom: 1.5rem; flex-wrap: wrap; }
+  .tab { padding: 8px 20px; border-radius: 20px; border: 1px solid var(--border); background: var(--bg); color: var(--text-muted); font-size: 14px; cursor: pointer; transition: all 0.15s; }
+  .tab.active { background: var(--brown); color: #fff; border-color: var(--brown); }
+  .tab:hover:not(.active) { border-color: var(--brown-light); color: var(--brown); }
+  .summary-bar { display: flex; gap: 12px; margin-bottom: 1.5rem; flex-wrap: wrap; }
+  .summary-card { background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px 18px; font-size: 12px; color: var(--text-muted); min-width: 140px; }
+  .summary-card .val { font-size: 18px; font-weight: 600; color: var(--brown); display: block; margin-top: 2px; }
+  .ai-zone { background: var(--bg); border: 1px solid var(--brown-border); border-radius: var(--radius); padding: 1.25rem 1.5rem; margin-bottom: 1.5rem; }
+  .ai-zone-title { font-size: 14px; font-weight: 600; color: var(--brown); margin-bottom: 10px; }
+  .ai-zone textarea { width: 100%; border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 10px 12px; font-size: 13px; color: var(--text); background: var(--cream); resize: vertical; min-height: 80px; font-family: inherit; line-height: 1.5; display: block; margin-bottom: 10px; }
+  .ai-zone textarea:focus { outline: none; border-color: var(--brown-light); background: var(--bg); }
+  .ai-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .ai-row select { padding: 8px 10px; border-radius: var(--radius-sm); border: 1px solid var(--border); background: var(--bg); color: var(--text); font-size: 13px; }
+  .btn-ai { padding: 9px 22px; border-radius: var(--radius-sm); border: none; background: var(--brown); color: #fff; font-size: 14px; font-weight: 500; cursor: pointer; display: flex; align-items: center; gap: 6px; }
+  .btn-ai:hover { background: #6a3f20; }
+  .btn-ai:disabled { opacity: 0.5; cursor: not-allowed; }
+  .spinner { width: 14px; height: 14px; border: 2px solid rgba(255,255,255,0.4); border-top-color: #fff; border-radius: 50%; animation: spin 0.7s linear infinite; display: inline-block; }
+  .ai-preview { margin-top: 14px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--cream); padding: 14px; display: none; }
+  .preview-hint { font-size: 12px; color: var(--text-muted); margin-bottom: 10px; }
+  .preview-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 10px; }
+  .preview-grid2 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 10px; }
+  .pf { display: flex; flex-direction: column; gap: 4px; }
+  .pf label { font-size: 11px; color: var(--text-muted); font-weight: 500; }
+  .pf input, .pf select { padding: 7px 10px; border-radius: var(--radius-sm); border: 1px solid var(--border); background: var(--bg); color: var(--text); font-size: 13px; width: 100%; }
+  .preview-actions { display: flex; gap: 8px; margin-top: 12px; }
+  .btn-confirm { padding: 8px 18px; border-radius: var(--radius-sm); background: var(--green-bg); color: var(--green-text); font-size: 13px; cursor: pointer; font-weight: 500; border: 1px solid var(--green-border); }
+  .btn-confirm:hover { background: #d4e8c4; }
+  .btn-cancel { padding: 8px 14px; border-radius: var(--radius-sm); border: 1px solid var(--border); background: var(--bg); color: var(--text-muted); font-size: 13px; cursor: pointer; }
+  .form-section { background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.25rem 1.5rem; margin-bottom: 1.5rem; }
+  .form-title { font-size: 13px; color: var(--text-muted); font-weight: 500; margin-bottom: 12px; }
+  .form-grid1 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 10px; }
+  .form-grid2 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 12px; }
+  .fg { display: flex; flex-direction: column; gap: 4px; }
+  .fg label { font-size: 11px; color: var(--text-muted); font-weight: 500; }
+  .fg input, .fg select { padding: 8px 10px; border-radius: var(--radius-sm); border: 1px solid var(--border); background: var(--cream); color: var(--text); font-size: 13px; width: 100%; }
+  .fg input:focus, .fg select:focus { outline: none; border-color: var(--brown-light); background: var(--bg); }
+  .btn-add { padding: 9px 22px; border-radius: var(--radius-sm); border: 1px solid var(--brown-light); background: var(--cream-dark); color: var(--brown); font-size: 13px; cursor: pointer; font-weight: 500; }
+  .btn-add:hover { background: var(--cream); border-color: var(--brown); }
+  .filter-row { display: flex; align-items: center; gap: 10px; margin-bottom: 1rem; flex-wrap: wrap; }
+  .filter-row label { font-size: 13px; color: var(--text-muted); }
+  .filter-row select { padding: 7px 10px; border-radius: var(--radius-sm); border: 1px solid var(--border); background: var(--bg); color: var(--text); font-size: 13px; }
+  .table-wrap { background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); overflow: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; table-layout: fixed; min-width: 860px; }
+  th { background: var(--cream); color: var(--brown); font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; padding: 11px 12px; text-align: left; border-bottom: 1px solid var(--border); }
+  td { padding: 10px 12px; border-bottom: 1px solid var(--border); color: var(--text); vertical-align: middle; }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: var(--bg-row); }
+  .col-cat{width:9%}.col-item{width:10%}.col-buy{width:9%}.col-store{width:11%}.col-cost{width:10%}.col-link{width:18%}.col-note{width:16%}.col-status{width:11%}.col-del{width:4%}
+  .status-badge { display: inline-block; padding: 3px 8px; border-radius: 20px; font-size: 11px; font-weight: 600; cursor: pointer; white-space: nowrap; }
+  .s0{background:var(--green-bg);color:var(--green-text)}.s1{background:var(--amber-bg);color:var(--amber-text)}.s2{background:var(--blue-bg);color:var(--blue-text)}
+  .link-cell a { color: var(--brown); text-decoration: underline; font-size: 12px; overflow: hidden; text-overflow: ellipsis; display: block; white-space: nowrap; }
+  .muted { color: var(--text-muted); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .cost-val { font-weight: 600; color: var(--brown); }
+  .hint { color: var(--text-hint); font-size: 12px; cursor: pointer; }
+  .del-btn { background: none; border: none; color: var(--text-hint); cursor: pointer; font-size: 15px; padding: 2px 5px; border-radius: 4px; }
+  .del-btn:hover { color: var(--red-text); background: var(--red-bg); }
+  .empty { text-align: center; color: var(--text-hint); padding: 3rem; font-size: 14px; }
+  .edit-input { width: 100%; border: 1px solid var(--brown-light); border-radius: 4px; padding: 4px 7px; font-size: 12px; background: var(--bg); color: var(--text); font-family: inherit; }
+  .loading-overlay { position: fixed; inset: 0; background: rgba(250,245,238,0.9); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; z-index: 999; font-size: 14px; color: var(--brown); }
+  .loading-spinner { width: 32px; height: 32px; border: 3px solid var(--brown-border); border-top-color: var(--brown); border-radius: 50%; animation: spin 0.8s linear infinite; }
+  @media (max-width: 700px) {
+    .main { padding: 1rem; } .key-bar,.header { padding: 10px 1rem; }
+    .form-grid1,.form-grid2,.preview-grid,.preview-grid2 { grid-template-columns: 1fr 1fr; }
+  }
+</style>
+</head>
+<body>
+<div id="loading-overlay" class="loading-overlay">
+  <div class="loading-spinner"></div>
+  <div>載入資料中...</div>
+</div>
+<div class="header">
+  <div class="logo">🏡 裝潢<span>採購資料庫</span></div>
+  <div class="sync-status"><div class="sync-dot" id="sync-dot"></div><span id="sync-text">連線中</span></div>
+</div>
+<div class="key-bar">
+  <label>Anthropic API Key（AI 辨別用）</label>
+  <input type="password" id="api-key-input" placeholder="sk-ant-..." />
+  <button class="btn-sm" onclick="saveApiKey()">儲存</button>
+  <span class="key-status" id="key-status">尚未設定</span>
+</div>
+<div class="main">
+  <div class="tabs" id="tabs"></div>
+  <div class="summary-bar" id="summary-bar"></div>
+  <div class="ai-zone">
+    <div class="ai-zone-title">✦ AI 自動辨別填入</div>
+    <textarea id="ai-text" placeholder="把商品頁面的文字或網址貼進來，AI 會自動辨別品項、類別、店家、價格、連結等資訊"></textarea>
+    <div class="ai-row">
+      <span style="font-size:13px;color:var(--text-muted)">加入分類：</span>
+      <select id="ai-cat"><option value="家具">家具</option><option value="裝潢風格">裝潢風格</option><option value="設計風格">設計風格</option></select>
+      <button class="btn-ai" id="btn-ai" onclick="parseWithAI()">✦ 辨別並填入</button>
+    </div>
+    <div class="ai-preview" id="ai-preview">
+      <div class="preview-hint">辨別結果，可直接修改，確認後按「加入資料庫」：</div>
+      <div class="preview-grid">
+        <div class="pf"><label>家具類別</label><select id="p-cat"><option>餐桌</option><option>燈</option><option>沙發</option><option>櫃子</option><option>電器</option><option>其他</option></select></div>
+        <div class="pf"><label>品項名稱</label><input id="p-item" type="text" /></div>
+        <div class="pf"><label>購買方式</label><select id="p-buy"><option>實體店</option><option>網購</option><option>訂製</option><option>二手</option><option>未定</option></select></div>
+        <div class="pf"><label>店家名稱</label><input id="p-store" type="text" /></div>
+      </div>
+      <div class="preview-grid2">
+        <div class="pf"><label>費用（NT$）</label><input id="p-cost" type="number" /></div>
+        <div class="pf"><label>連結</label><input id="p-link" type="text" /></div>
+        <div class="pf"><label>備註</label><input id="p-note" type="text" /></div>
+      </div>
+      <div class="preview-actions">
+        <button class="btn-confirm" onclick="confirmAI()">✓ 加入資料庫</button>
+        <button class="btn-cancel" onclick="cancelAI()">取消</button>
+      </div>
+    </div>
+  </div>
+  <div class="form-section">
+    <div class="form-title">手動新增</div>
+    <div class="form-grid1">
+      <div class="fg"><label>家具類別</label><select id="in-cat"><option>餐桌</option><option>燈</option><option>沙發</option><option>櫃子</option><option>電器</option><option>其他</option></select></div>
+      <div class="fg"><label>品項名稱</label><input type="text" id="in-item" placeholder="例：TARN 餐桌" /></div>
+      <div class="fg"><label>購買方式</label><select id="in-buy"><option>實體店</option><option>網購</option><option>訂製</option><option>二手</option><option>未定</option></select></div>
+      <div class="fg"><label>店家名稱</label><input type="text" id="in-store" placeholder="例：IKEA" /></div>
+    </div>
+    <div class="form-grid2">
+      <div class="fg"><label>費用（NT$）</label><input type="number" id="in-cost" placeholder="0" /></div>
+      <div class="fg"><label>連結</label><input type="text" id="in-link" placeholder="https://..." /></div>
+      <div class="fg"><label>備註</label><input type="text" id="in-note" placeholder="尺寸、顏色等" /></div>
+    </div>
+    <button class="btn-add" onclick="addItem()">＋ 新增</button>
+  </div>
+  <div class="filter-row">
+    <label>分類：</label>
+    <select id="filter-tab" onchange="render()">
+      <option value="家具">家具</option><option value="裝潢風格">裝潢風格</option><option value="設計風格">設計風格</option>
+    </select>
+    <label>類別：</label>
+    <select id="filter-cat" onchange="render()">
+      <option value="">全部類別</option>
+      <option>餐桌</option><option>燈</option><option>沙發</option><option>櫃子</option><option>電器</option><option>其他</option>
+    </select>
+    <label>狀態：</label>
+    <select id="filter-status" onchange="render()">
+      <option value="">全部狀態</option><option value="0">觀望中</option><option value="1">已決定</option><option value="2">已購買</option>
+    </select>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead><tr>
+        <th class="col-cat">類別</th><th class="col-item">品項</th><th class="col-buy">購買方式</th>
+        <th class="col-store">店家</th><th class="col-cost">費用（NT$）</th><th class="col-link">連結</th>
+        <th class="col-note">備註</th><th class="col-status">狀態</th><th class="col-del"></th>
+      </tr></thead>
+      <tbody id="tbody"></tbody>
+    </table>
+  </div>
+</div>
+<script>
+const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby8PHqEeWy5Zn2CwIAqiYUnuxb1AuIxdn9eKC7oc5AqqPvJEyqutjePpkrvapo_qXg9Dg/exec';
+const API_KEY_NAME = 'home_reno_api_key';
+const FCATS = ['餐桌','燈','沙發','櫃子','電器','其他'];
+const TABS = ['家具','裝潢風格','設計風格'];
+const SL = ['觀望中','已決定','已購買'];
+const SC = ['s0','s1','s2'];
+let rows = [];
+let saveTimer = null;
+
+function setSyncStatus(s, t) {
+  document.getElementById('sync-dot').className = 'sync-dot ' + s;
+  document.getElementById('sync-text').textContent = t;
+}
+
+async function loadFromSheets() {
+  try {
+    setSyncStatus('syncing', '載入中...');
+    const resp = await fetch(SCRIPT_URL + '?action=read');
+    const data = await resp.json();
+    if (data.length <= 1) { rows = []; }
+    else {
+      const headers = data[0];
+      rows = data.slice(1).map(r => {
+        const obj = {};
+        headers.forEach((h, i) => obj[h] = r[i] !== undefined ? String(r[i]) : '');
+        obj.status = parseInt(obj.status) || 0;
+        if (!obj.cat) obj.cat = '其他';
+        if (!obj.tab) obj.tab = '家具';
+        return obj;
+      });
+    }
+    setSyncStatus('ok', '已同步');
+  } catch(e) {
+    setSyncStatus('err', '連線失敗');
+    const saved = localStorage.getItem('home_reno_rows');
+    if (saved) rows = JSON.parse(saved);
+  }
+  document.getElementById('loading-overlay').style.display = 'none';
+  renderTabs(); renderSummary(); render();
+}
+
+async function saveToSheets() {
+  setSyncStatus('syncing', '儲存中...');
+  localStorage.setItem('home_reno_rows', JSON.stringify(rows));
+  try {
+    const headers = ['id','cat','item','buy','store','cost','link','note','status','tab'];
+    const sheetRows = [headers, ...rows.map(r => headers.map(h => r[h] !== undefined ? r[h] : ''))];
+    const encoded = encodeURIComponent(JSON.stringify(sheetRows));
+    await fetch(`${SCRIPT_URL}?action=write&data=${encoded}`);
+    setSyncStatus('ok', '已同步');
+  } catch(e) {
+    setSyncStatus('err', '同步失敗（已存本機）');
+  }
+}
+
+function scheduleSave() {
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(saveToSheets, 800);
+}
+
+function currentTab() { return document.getElementById('filter-tab').value; }
+
+function renderTabs() {
+  document.getElementById('tabs').innerHTML = TABS.map(t => {
+    const count = rows.filter(r => r.tab === t).length;
+    return `<button class="tab${currentTab()===t?' active':''}" onclick="switchTab('${t}')">${t}（${count}）</button>`;
+  }).join('');
+}
+
+function switchTab(t) {
+  document.getElementById('filter-tab').value = t;
+  document.getElementById('ai-cat').value = t;
+  renderTabs(); renderSummary(); render();
+}
+
+function renderSummary() {
+  const fc = document.getElementById('filter-cat').value;
+  let r = rows.filter(x => x.tab === currentTab());
+  if (fc) r = r.filter(x => x.cat === fc);
+  const t = r.reduce((s,x)=>s+(parseFloat(x.cost)||0),0);
+  const d = r.filter(x=>x.status>=1).reduce((s,x)=>s+(parseFloat(x.cost)||0),0);
+  const p = r.filter(x=>x.status===2).reduce((s,x)=>s+(parseFloat(x.cost)||0),0);
+  document.getElementById('summary-bar').innerHTML = `
+    <div class="summary-card">總預算（含觀望）<span class="val">NT$ ${t.toLocaleString()}</span></div>
+    <div class="summary-card">已決定費用<span class="val">NT$ ${d.toLocaleString()}</span></div>
+    <div class="summary-card">已購買費用<span class="val">NT$ ${p.toLocaleString()}</span></div>`;
+}
+
+function render() {
+  const fc = document.getElementById('filter-cat').value;
+  const fs = document.getElementById('filter-status').value;
+  let r = rows.filter(x => x.tab === currentTab());
+  if (fc) r = r.filter(x => x.cat === fc);
+  if (fs !== '') r = r.filter(x => x.status === parseInt(fs));
+  renderSummary();
+  const tb = document.getElementById('tbody');
+  if (!r.length) { tb.innerHTML = `<tr><td colspan="9" class="empty">沒有符合條件的項目</td></tr>`; return; }
+  tb.innerHTML = r.map(x => `
+    <tr>
+      <td><select style="font-size:11px;border:1px solid #e0c9a8;border-radius:4px;padding:2px 5px;background:#f0e8d8;color:#7a4e2a;" onchange="updateField('${x.id}','cat',this.value)">${FCATS.map(v=>`<option${x.cat===v?' selected':''}>${v}</option>`).join('')}</select></td>
+      <td ondblclick="editCell(this,'${x.id}','item')">${esc(x.item)}</td>
+      <td><select style="font-size:11px;border:1px solid #e8ddd0;border-radius:4px;padding:2px 5px;background:#faf5ee;color:#2c1f0f;" onchange="updateField('${x.id}','buy',this.value)">${['實體店','網購','訂製','二手','未定'].map(v=>`<option${x.buy===v?' selected':''}>${v}</option>`).join('')}</select></td>
+      <td class="muted" ondblclick="editCell(this,'${x.id}','store')">${x.store?esc(x.store):'<span class="hint">點兩下填寫</span>'}</td>
+      <td ondblclick="editCell(this,'${x.id}','cost')">${x.cost?`<span class="cost-val">NT$ ${Number(x.cost).toLocaleString()}</span>`:'<span class="hint">點兩下填寫</span>'}</td>
+      <td class="link-cell">${x.link?`<a href="${esc(x.link)}" target="_blank">${esc(x.link.replace(/^https?:\/\//,'').substring(0,26))}</a>`:`<span class="hint" ondblclick="editCell(this,'${x.id}','link')">點兩下填連結</span>`}</td>
+      <td class="muted" ondblclick="editCell(this,'${x.id}','note')">${x.note?esc(x.note):'<span class="hint">點兩下填寫</span>'}</td>
+      <td><span class="status-badge ${SC[x.status]}" onclick="cycleStatus('${x.id}')">${SL[x.status]}</span></td>
+      <td><button class="del-btn" onclick="delItem('${x.id}')" title="刪除">✕</button></td>
+    </tr>`).join('');
+}
+
+function esc(s){return(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function genId(){return Date.now().toString(36)+Math.random().toString(36).slice(2,6);}
+
+function addItem() {
+  const item = document.getElementById('in-item').value.trim();
+  if (!item) { document.getElementById('in-item').focus(); return; }
+  rows.push({ id:genId(), tab:currentTab(), cat:document.getElementById('in-cat').value, item, buy:document.getElementById('in-buy').value, store:document.getElementById('in-store').value.trim(), cost:document.getElementById('in-cost').value.trim(), link:document.getElementById('in-link').value.trim(), note:document.getElementById('in-note').value.trim(), status:0 });
+  ['in-item','in-store','in-cost','in-link','in-note'].forEach(id=>document.getElementById(id).value='');
+  renderTabs(); renderSummary(); render(); scheduleSave();
+}
+
+function delItem(id) { rows=rows.filter(r=>r.id!==id); renderTabs(); renderSummary(); render(); scheduleSave(); }
+function cycleStatus(id) { const r=rows.find(r=>r.id===id); if(r){r.status=(r.status+1)%3; renderSummary(); render(); scheduleSave();} }
+function updateField(id,field,val) { const r=rows.find(r=>r.id===id); if(r){r[field]=val; renderSummary(); render(); scheduleSave();} }
+function editCell(el,id,field) {
+  const r=rows.find(r=>r.id===id); if(!r)return;
+  el.innerHTML=`<input class="edit-input" type="${field==='cost'?'number':'text'}" value="${esc(String(r[field]||''))}" onblur="commitEdit(this,'${id}','${field}')" onkeydown="if(event.key==='Enter')this.blur();" />`;
+  el.querySelector('input').focus();
+}
+function commitEdit(inp,id,field) { const r=rows.find(r=>r.id===id); if(r){r[field]=inp.value.trim(); renderSummary(); render(); scheduleSave();} }
+
+function saveApiKey() {
+  const k=document.getElementById('api-key-input').value.trim(); if(!k)return;
+  localStorage.setItem(API_KEY_NAME,k);
+  document.getElementById('key-status').textContent='API Key 已儲存 ✓';
+  document.getElementById('key-status').className='key-status ok';
+}
+
+async function parseWithAI() {
+  const text=document.getElementById('ai-text').value.trim(); if(!text){document.getElementById('ai-text').focus();return;}
+  const apiKey=localStorage.getItem(API_KEY_NAME); if(!apiKey){alert('請先填入並儲存 Anthropic API Key');return;}
+  const btn=document.getElementById('btn-ai'); btn.disabled=true; btn.innerHTML='<span class="spinner"></span> 辨別中...';
+  document.getElementById('ai-preview').style.display='none';
+  try {
+    const resp=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':apiKey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:1000,messages:[{role:'user',content:`從以下文字辨別商品資訊，只回傳 JSON，不要任何說明或 markdown。欄位：cat（家具類別：餐桌/燈/沙發/櫃子/電器/其他 擇一）、item（品項名稱）、buy（購買方式：實體店/網購/訂製/二手/未定 擇一）、store（店家名稱，無則空字串）、cost（費用數字新台幣，無則空字串）、link（https網址，無則空字串）、note（尺寸顏色型號等，無則空字串）\n格式：{"cat":"","item":"","buy":"","store":"","cost":"","link":"","note":""}\n文字：\n${text}`}]})});
+    const data=await resp.json(); if(data.error)throw new Error(data.error.message);
+    const raw=data.content.filter(b=>b.type==='text').map(b=>b.text).join('');
+    const parsed=JSON.parse(raw.replace(/```json|```/g,'').trim());
+    document.getElementById('p-cat').value=FCATS.includes(parsed.cat)?parsed.cat:'其他';
+    document.getElementById('p-item').value=parsed.item||'';
+    document.getElementById('p-buy').value=['實體店','網購','訂製','二手','未定'].includes(parsed.buy)?parsed.buy:'未定';
+    document.getElementById('p-store').value=parsed.store||'';
+    document.getElementById('p-cost').value=parsed.cost||'';
+    document.getElementById('p-link').value=parsed.link||'';
+    document.getElementById('p-note').value=parsed.note||'';
+    document.getElementById('ai-preview').style.display='block';
+  } catch(e){alert('辨別失敗：'+e.message);}
+  btn.disabled=false; btn.innerHTML='✦ 辨別並填入';
+}
+
+function confirmAI() {
+  const tab=document.getElementById('ai-cat').value;
+  rows.push({id:genId(),tab,cat:document.getElementById('p-cat').value,item:document.getElementById('p-item').value.trim(),buy:document.getElementById('p-buy').value,store:document.getElementById('p-store').value.trim(),cost:document.getElementById('p-cost').value.trim(),link:document.getElementById('p-link').value.trim(),note:document.getElementById('p-note').value.trim(),status:0});
+  document.getElementById('filter-tab').value=tab;
+  document.getElementById('ai-text').value=''; document.getElementById('ai-preview').style.display='none';
+  renderTabs(); renderSummary(); render(); scheduleSave();
+}
+function cancelAI(){document.getElementById('ai-preview').style.display='none';}
+
+function init() {
+  const k=localStorage.getItem(API_KEY_NAME)||'';
+  if(k){document.getElementById('api-key-input').value=k;document.getElementById('key-status').textContent='API Key 已設定 ✓';document.getElementById('key-status').className='key-status ok';}
+  loadFromSheets();
+}
+init();
+</script>
+</body>
+</html>
